@@ -11,7 +11,10 @@ interface SettingsModalProps {
 }
 
 // Add "Custom" option to the shared list for Settings only
-const SETTINGS_MODELS = [...MODELS, { id: 'custom', name: 'Custom Model ID...' }]
+const SETTINGS_MODELS = [
+  ...MODELS.filter((m) => m.id !== 'gemini-3-pro-image'),
+  { id: 'custom', name: 'Custom Model ID...' }
+]
 
 export function SettingsModal({
   isOpen,
@@ -281,19 +284,17 @@ export function SettingsModal({
                   <div
                     key={key.id}
                     onClick={() => handleSetActiveKey(key.id)}
-                    className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${
-                      settings.activeKeyId === key.id
+                    className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${settings.activeKeyId === key.id
                         ? 'bg-[#004a77]/30 border-[#8ab4f8] shadow-sm'
                         : 'bg-[#2c2d2e] border-transparent hover:border-gray-600'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                          settings.activeKeyId === key.id
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${settings.activeKeyId === key.id
                             ? 'border-[#8ab4f8] bg-[#8ab4f8]'
                             : 'border-gray-500'
-                        }`}
+                          }`}
                       >
                         {settings.activeKeyId === key.id && (
                           <Check size={10} className="text-[#041e49]" />

@@ -372,7 +372,7 @@ export function ChatArea({
             if (res.success && res.path) {
               const successMsg: Message = {
                 role: 'model',
-                content: `Generated using **${modelId}**:\n"${prompt}"`,
+                content: '',
                 images: [res.path]
               }
               const finalMessages = [...newMessages, successMsg] as Message[]
@@ -720,20 +720,32 @@ export function ChatArea({
         className={`flex-1 overflow-y-auto px-4 md:px-[15%] pt-8 pb-4 flex flex-col ${isZeroState ? 'justify-center items-center' : 'gap-10'}`}
       >
         {isZeroState ? (
-          <div className="flex flex-col items-start w-full max-w-3xl mb-10 pl-2">
-            <div className="flex items-center gap-2 mb-2">
-              {systemInstruction ? (
-                <span className="bg-[#f4b400]/20 text-[#f4b400] text-xs px-2 py-0.5 rounded flex items-center gap-1">
-                  <Sparkles size={10} /> Custom Gem Active
-                </span>
-              ) : (
-                <Sparkles className="text-[#c48df6]" size={36} />
-              )}
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-fade-in select-none">
+            <div className="mb-8">
+              <h1 className="text-5xl font-medium tracking-tight bg-gradient-to-r from-[#4285f4] via-[#9b72cb] to-[#d96570] text-transparent bg-clip-text mb-2">
+                Hi {userName ? userName.split(' ')[0] : 'there'}
+              </h1>
+              <p className="text-2xl text-[#5f6368] font-medium">Can I help you with anything?</p>
             </div>
-            <h1 className="text-5xl font-medium bg-gradient-to-r from-[#4285f4] via-[#ec407a] to-[#f4b400] bg-clip-text text-transparent pb-2">
-              Hello, {userName || 'User'}
-            </h1>
-            <p className="text-[#8e8e8e] text-2xl font-light">How can I help you today?</p>
+
+            <div className="w-full max-w-3xl flex flex-wrap justify-center gap-3">
+              {[
+                { label: 'Create image', icon: '🎨', prompt: 'Create an image of ' },
+                { label: 'Create video', icon: '🎥', prompt: 'Create a video about ' },
+                { label: 'Write anything', icon: '📝', prompt: 'Write a story about ' },
+                { label: 'Help me learn', icon: '🎓', prompt: 'Explain the concept of ' },
+                { label: 'Boost my day', icon: '🚀', prompt: 'Give me a motivation quote' }
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  onClick={() => setInput(chip.prompt)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#1e1f20] hover:bg-[#333537] rounded-[100px] text-[#e3e3e3] border border-transparent hover:border-gray-600 transition-all font-medium text-[15px]"
+                >
+                  <span className="text-lg">{chip.icon}</span>
+                  <span>{chip.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <>
@@ -1038,43 +1050,47 @@ export function ChatArea({
       </div>
 
       {/* Lightbox Modal */}
-      {viewedImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
-          onClick={() => setViewedImage(null)}
-        >
-          <button
-            className="absolute top-4 right-4 text-white hover:text-gray-300 bg-gray-900/50 rounded-full p-2 transition-colors"
+      {
+        viewedImage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
             onClick={() => setViewedImage(null)}
           >
-            <X size={24} />
-          </button>
+            <button
+              className="absolute top-4 right-4 text-white hover:text-gray-300 bg-gray-900/50 rounded-full p-2 transition-colors"
+              onClick={() => setViewedImage(null)}
+            >
+              <X size={24} />
+            </button>
 
-          {viewedImage.startsWith('data:video/') ||
-            /\.(mp4|webm|mov|avi)$/i.test(viewedImage.toLowerCase()) ? (
-            <video
-              src={viewedImage}
-              controls
-              autoPlay
-              className="max-w-full max-h-[90vh] rounded-lg shadow-2xl bg-black"
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <img
-              src={viewedImage}
-              alt="Full size"
-              className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain bg-black"
-              onClick={(e) => e.stopPropagation()}
-            />
-          )}
-        </div>
-      )}
+            {viewedImage.startsWith('data:video/') ||
+              /\.(mp4|webm|mov|avi)$/i.test(viewedImage.toLowerCase()) ? (
+              <video
+                src={viewedImage}
+                controls
+                autoPlay
+                className="max-w-full max-h-[90vh] rounded-lg shadow-2xl bg-black"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <img
+                src={viewedImage}
+                alt="Full size"
+                className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain bg-black"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+          </div>
+        )
+      }
       {/* Copied Toast */}
-      {showCopiedToast && (
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-[#333] text-white px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-fade-in-up flex items-center gap-2 border border-[#444]">
-          <span className="text-green-400">✓</span> Copied to clipboard
-        </div>
-      )}
-    </div>
+      {
+        showCopiedToast && (
+          <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-[#333] text-white px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-fade-in-up flex items-center gap-2 border border-[#444]">
+            <span className="text-green-400">✓</span> Copied to clipboard
+          </div>
+        )
+      }
+    </div >
   )
 }
