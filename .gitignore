@@ -1,0 +1,22 @@
+
+# Environment variables
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.idea
+
+# Build parts
+node_modules
+dist
+out
+build/icon.icns
+build/icon.ico
