@@ -4,5 +4,9 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: unknown
+    gemini: {
+      getUserAgent: () => Promise<string>
+      [key: string]: any
+    }
   }
 }

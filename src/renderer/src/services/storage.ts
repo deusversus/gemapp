@@ -149,7 +149,7 @@ export class StorageService {
         const defaultSettings: AppSettings = {
             apiKeys: [],
             activeKeyId: '',
-            activeModel: 'gemini-1.5-flash',
+            activeModel: 'gemini-3-pro-preview',
             theme: 'dark',
             username: 'User',
             globalInstructions: ''

@@ -9,10 +9,13 @@ export const MODELS = [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
     { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Experimental' },
     { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite' },
-    // Gemini 1.5 Series (Stable)
+    // Gemini 1.5 Series (Standard Aliases)
     { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
     { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
     { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash 8B' },
+    // Gemini 1.5 Specific Versions (Fallbacks)
+    { id: 'gemini-1.5-pro-001', name: 'Gemini 1.5 Pro (001)' },
+    { id: 'gemini-1.5-flash-001', name: 'Gemini 1.5 Flash (001)' },
 ]
 
 export function getModelName(id: string): string {

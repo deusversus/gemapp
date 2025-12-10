@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Sidebar } from './Sidebar'
 import { ChatArea } from './ChatArea'
 import { SettingsModal } from './SettingsModal'
@@ -23,6 +23,7 @@ export function Layout() {
     // Data State
     const [gems, setGems] = useState<Gem[]>([])
     const [recentImages, setRecentImages] = useState<string[]>([])
+    const [userAgent, setUserAgent] = useState<string>('')
 
     // Modals
     const [showSettings, setShowSettings] = useState(false)
@@ -34,17 +35,35 @@ export function Layout() {
 
     const [highlightedImage, setHighlightedImage] = useState<string | undefined>(undefined)
 
+
+
+    const webviewRef = useRef<any>(null)
+
     useEffect(() => {
-        loadData()
-    }, [])
+        const webview = webviewRef.current
+        if (!webview) return
 
-    const loadData = () => {
-        setChats(StorageService.getChats())
-        setGems(StorageService.getGems())
-        fetchImages()
-    }
+        const onDomReady = () => {
+            // Anti-fingerprinting: Delete navigator.webdriver and ChromeDriver variables
+            webview.executeJavaScript(`
+                // 1. Remove navigator.webdriver
+                const newProto = navigator.__proto__;
+                delete newProto.webdriver;
+                navigator.__proto__ = newProto;
 
-    const fetchImages = async () => {
+                // 2. Remove ChromeDriver "cdc_" variable
+                const key = Object.keys(window).find(key => key.startsWith('cdc_'));
+                if(key) delete window[key];
+            `)
+        }
+
+        webview.addEventListener('dom-ready', onDomReady)
+        return () => {
+            webview.removeEventListener('dom-ready', onDomReady)
+        }
+    }, [userAgent, mode])
+
+    const fetchImages = useCallback(async () => {
         try {
             const result = await window.gemini.listImages()
             if (result.success && result.images) {
@@ -53,12 +72,32 @@ export function Layout() {
         } catch (e) {
             console.error('Failed to fetch images', e)
         }
-    }
+    }, [])
+
+    const loadData = useCallback(async () => {
+        setChats(StorageService.getChats())
+        setGems(StorageService.getGems())
+        fetchImages()
+        // Fetch platform-specific User-Agent from main process to support both Mac and Windows
+        try {
+            const ua = await window.gemini.getUserAgent()
+            setUserAgent(ua)
+        } catch (e) {
+            console.error('Failed to get User-Agent:', e)
+            // Fallback to Windows Firefox if IPC fails
+            setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0')
+        }
+    }, [fetchImages])
+
+    // Initial Data Load
+    useEffect(() => {
+        loadData()
+    }, [loadData])
 
     // Refresh images occasionally or when chats update
     useEffect(() => {
         fetchImages()
-    }, [chats]) // When chat updates, maybe new image was added
+    }, [chats, fetchImages]) // When chat updates, maybe new image was added
 
     const handleSelectChat = (id: string) => {
         setActiveChatId(id)
@@ -171,7 +210,7 @@ export function Layout() {
         setHighlightedImage(undefined)
     }
 
-    const handleCreateChat = async (initialMessage: string): Promise<string> => {
+    const handleCreateChat = async (_initialMessage: string): Promise<string> => {
         const newId = Date.now().toString(36) + Math.random().toString(36).substr(2)
         const newChat: ChatSession = {
             id: newId,
@@ -246,11 +285,19 @@ export function Layout() {
 
                 <div className="flex-1 h-full min-w-0 relative flex flex-col">
                     {mode === 'web' ? (
-                        <webview
-                            src="https://gemini.google.com"
-                            className="w-full h-full"
-                            useragent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                        />
+                        userAgent ? (
+                            <webview
+                                ref={webviewRef}
+                                src="https://gemini.google.com"
+                                className="w-full h-full"
+                                useragent={userAgent}
+                                partition="persist:gemini"
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-gray-400">
+                                Initializing Secure Session...
+                            </div>
+                        )
                     ) : (
                         <ChatArea
                             activeChatId={activeChatId}

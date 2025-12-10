@@ -9,7 +9,8 @@ const geminiAPI = {
   saveImage: (params: any) => ipcRenderer.invoke('gemini:saveImage', params),
   listImages: () => ipcRenderer.invoke('gemini:listImages'),
   deleteImage: (params: any) => ipcRenderer.invoke('gemini:deleteImage', params),
-  deleteAllImages: () => ipcRenderer.invoke('gemini:deleteAllImages')
+  deleteAllImages: () => ipcRenderer.invoke('gemini:deleteAllImages'),
+  getUserAgent: () => ipcRenderer.invoke('gemini:getUserAgent')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

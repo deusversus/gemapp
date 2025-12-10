@@ -15,6 +15,7 @@ declare global {
             listImages: () => Promise<{ success: boolean; images?: string[]; error?: string }>
             deleteImage: (params: { filename: string }) => Promise<{ success: boolean; error?: string }>
             deleteAllImages: () => Promise<{ success: boolean; error?: string }>
+            getUserAgent: () => Promise<string>
         }
     }
 }

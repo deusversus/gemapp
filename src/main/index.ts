@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, protocol } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, protocol, session, Session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -15,12 +15,16 @@ protocol.registerSchemesAsPrivileged([
 // Hide automation flags
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
-// Spoof UA to allow Google Login
-const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+// Spoof UA to allow Google Login - use Firefox UA as it often bypasses Electron detection
+// (User suggested Firefox 70, but using 133 to avoid 'browser not supported' errors)
+const MAC_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0'
+const WIN_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0'
+const CHROME_UA = process.platform === 'win32' ? WIN_UA : MAC_UA
 app.userAgentFallback = CHROME_UA
 
 let tray: Tray | null = null
 let mainWindow: BrowserWindow | null = null
+let isQuitting = false
 
 function createWindow(): void {
   // Create the browser window.
@@ -147,9 +151,105 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+  
+  // Return platform-appropriate User-Agent
+  ipcMain.handle('gemini:getUserAgent', () => {
+    return CHROME_UA
+  })
 
+  app.on('web-contents-created', (_event, contents) => {
+    // Advanced stealth: Use CDP (Chrome DevTools Protocol) to modify navigator properties
+    // This runs even before preload scripts, effectively hiding the automation flags completely
+    contents.on('did-finish-load', () => {
+        // Optional: extra verify
+    })
+
+    try {
+        if (!contents.debugger.isAttached()) {
+            contents.debugger.attach('1.3')
+        }
+        
+        contents.debugger.sendCommand('Page.enable')
+        contents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
+            source: `
+                // Overwrite the webdriver property with a getter that returns undefined
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                
+                // Cleanup prototype just in case
+                try {
+                    delete Navigator.prototype.webdriver;
+                } catch(e) {}
+
+                // Remove specific automation flags
+                try {
+                    const key = Object.keys(window).find(key => key.startsWith('cdc_'));
+                    if(key) delete window[key];
+                } catch(e) {}
+            `
+        })
+    } catch (e) {
+        console.error('Failed to attach debugger for stealth:', e)
+    }
+  })
+  
   app.on('ready', () => {
-    // No extra header spoofing needed if app.userAgentFallback is set correctly
+    // 1. Create Anti-Fingerprinting Preload Script
+    // We write this file dynamically to ensure it exists and has the latest bypass logic
+    const userDataPath = app.getPath('userData')
+    const antiFingerprintPath = join(userDataPath, 'anti-fingerprint.js')
+    
+    const antiFingerprintContent = `
+      try {
+        // Remove navigator.webdriver (common automation flag)
+        const newProto = navigator.__proto__;
+        delete newProto.webdriver;
+        navigator.__proto__ = newProto;
+      } catch (e) {}
+
+      try {
+        // Remove Selenium/ChromeDriver markers (cdc_...)
+        const key = Object.keys(window).find(key => key.startsWith('cdc_'));
+        if(key) delete window[key];
+      } catch (e) {}
+    `
+    try {
+      fs.writeFileSync(antiFingerprintPath, antiFingerprintContent)
+    } catch (e) {
+      console.error('Failed to write anti-fingerprint script:', e)
+    }
+
+    // 2. Configure Specific Session with Preload & Headers
+    const geminiSession = session.fromPartition('persist:gemini')
+    try {
+      geminiSession.setPreloads([antiFingerprintPath])
+    } catch (e) {
+      console.error('Failed to set preloads:', e)
+    }
+
+    // Helper to strip headers for anti-fingerprinting
+    const stripHeaders = (sess: Session): void => {
+      sess.webRequest.onBeforeSendHeaders(
+        { urls: ['*://*.google.com/*', '*://*.googleapis.com/*', '*://accounts.google.com/*'] },
+        (details, callback) => {
+          const { requestHeaders } = details
+          delete requestHeaders['Sec-Ch-Ua']
+          delete requestHeaders['Sec-Ch-Ua-Full-Version']
+          delete requestHeaders['Sec-Ch-Ua-Full-Version-List']
+          delete requestHeaders['Sec-Ch-Ua-Mobile']
+          delete requestHeaders['Sec-Ch-Ua-Platform']
+          delete requestHeaders['Sec-Ch-Ua-Platform-Version']
+          callback({ requestHeaders })
+        }
+      )
+    }
+
+    // Apply to default session (safe fallback)
+    stripHeaders(session.defaultSession)
+
+    // Apply to our specific webview partition
+    stripHeaders(geminiSession)
   })
 
   createWindow()
@@ -192,7 +292,7 @@ app.on('window-all-closed', () => {
   }
 })
 
-let isQuitting = false
+
 
 app.on('before-quit', () => {
     isQuitting = true
